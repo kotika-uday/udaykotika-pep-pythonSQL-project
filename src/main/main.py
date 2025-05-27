@@ -48,12 +48,44 @@ def main():
 
 # This function will load the users.csv file into the users table, discarding any records with incomplete data
 def load_and_clean_users(file_path):
-
+    try:
+        with open(file_path, newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            headers = next(reader)
+            for row in reader:
+                if len(row) == 3 and all(row):  # Ensure data is complete
+                    try:
+                        cursor.execute('INSERT INTO users (userId, firstName, lastName) VALUES (?, ?, ?)',
+                                       (int(row[0]), row[1], row[2]))
+                    except sqlite3.IntegrityError as e:
+                        print(f"Skipping row {row} due to IntegrityError: {e}")
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+    except Exception as e:
+        print(f"Error processing users file: {e}")
     print("TODO: load_users")
 
 
 # This function will load the callLogs.csv file into the callLogs table, discarding any records with incomplete data
 def load_and_clean_call_logs(file_path):
+    try:
+        with open(file_path, newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            headers = next(reader)  # Skip header
+            for row in reader:
+                if len(row) == 6 and all(row):
+                    try:
+                        # Assuming correct order: phoneNumber, callId, startTime, endTime, direction, userId
+                        cursor.execute('''INSERT INTO callLogs 
+                            (callId, phoneNumber, startTime, endTime, direction, userId) 
+                            VALUES (?, ?, ?, ?, ?, ?)''',
+                            (int(row[1]), row[0], int(row[2]), int(row[3]), row[4], int(row[5])))
+                    except ValueError as e:
+                        print(f"Skipping invalid row {row}: {e}")
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+    except Exception as e:
+        print(f"Error processing call log file: {e}")
 
     print("TODO: load_call_logs")
 
@@ -62,6 +94,18 @@ def load_and_clean_call_logs(file_path):
 # You must save records consisting of each userId, avgDuration, and numCalls
 # example: 1,105.0,4 - where 1 is the userId, 105.0 is the avgDuration, and 4 is the numCalls.
 def write_user_analytics(csv_file_path):
+    cursor.execute('''
+        SELECT userId,
+               AVG(endTime - startTime) AS avgDuration,
+               COUNT(*) AS numCalls
+        FROM callLogs
+        GROUP BY userId
+    ''')
+    with open(csv_file_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['userId', 'avgDuration', 'numCalls'])
+        for row in cursor.fetchall():
+            writer.writerow([row[0], round(row[1], 1), row[2]])
 
     print("TODO: write_user_analytics")
 
@@ -69,6 +113,13 @@ def write_user_analytics(csv_file_path):
 # This function will write the callLogs ordered by userId, then start time.
 # Then, write the ordered callLogs to orderedCalls.csv
 def write_ordered_calls(csv_file_path):
+    cursor.execute('SELECT * FROM callLogs ORDER BY userId, startTime')
+    
+    with open(csv_file_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['callId', 'phoneNumber', 'startTime', 'endTime', 'direction', 'userId'])
+        for row in cursor.fetchall():
+            writer.writerows(row)
 
     print("TODO: write_ordered_calls")
 
