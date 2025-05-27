@@ -52,18 +52,21 @@ def load_and_clean_users(file_path):
         with open(file_path, newline='') as csvfile:
             reader = csv.reader(csvfile)
             headers = next(reader)
+
             for row in reader:
-                if len(row) == 3 and all(row):  # Ensure data is complete
+                if len(row) == 3 and all(row):
                     try:
-                        cursor.execute('INSERT INTO users (userId, firstName, lastName) VALUES (?, ?, ?)',
-                                       (int(row[0]), row[1], row[2]))
+                        cursor.execute(
+                            'INSERT INTO users (userId, firstName, lastName) VALUES (?, ?, ?)',
+                            (int(row[0]), row[1], row[2])
+                        )
                     except sqlite3.IntegrityError as e:
                         print(f"Skipping row {row} due to IntegrityError: {e}")
     except FileNotFoundError:
         print(f"File not found: {file_path}")
     except Exception as e:
         print(f"Error processing users file: {e}")
-    print("TODO: load_users")
+
 
 
 # This function will load the callLogs.csv file into the callLogs table, discarding any records with incomplete data
@@ -72,22 +75,30 @@ def load_and_clean_call_logs(file_path):
         with open(file_path, newline='') as csvfile:
             reader = csv.reader(csvfile)
             headers = next(reader)  # Skip header
+
             for row in reader:
-                if len(row) == 6 and all(row):
+                if len(row) == 6 and all(row):  # Ensure valid length and no empty values
                     try:
-                        # Assuming correct order: phoneNumber, callId, startTime, endTime, direction, userId
-                        cursor.execute('''INSERT INTO callLogs 
-                            (callId, phoneNumber, startTime, endTime, direction, userId) 
-                            VALUES (?, ?, ?, ?, ?, ?)''',
-                            (int(row[1]), row[0], int(row[2]), int(row[3]), row[4], int(row[5])))
+                        # Parse fields
+                        phoneNumber = row[0]
+                        callid = int(row[1])
+                        startTime = int(row[2])
+                        endTime = int(row[3])
+                        direction = row[4]
+                        userId = int(row[5])
+
+                        # Insert into callLogs
+                        cursor.execute('''
+                            INSERT INTO callLogs (callid, phoneNumber, startTime, endTime, direction, userId)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        ''', (callid, phoneNumber, startTime, endTime, direction, userId))
                     except ValueError as e:
                         print(f"Skipping invalid row {row}: {e}")
     except FileNotFoundError:
         print(f"File not found: {file_path}")
     except Exception as e:
-        print(f"Error processing call log file: {e}")
+        print(f"Error processing call logs file: {e}")
 
-    print("TODO: load_call_logs")
 
 
 # This function will write analytics data to testUserAnalytics.csv - average call time, and number of calls per user.
@@ -101,27 +112,30 @@ def write_user_analytics(csv_file_path):
         FROM callLogs
         GROUP BY userId
     ''')
+
+    rows = cursor.fetchall()
+
     with open(csv_file_path, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['userId', 'avgDuration', 'numCalls'])
-        for row in cursor.fetchall():
+        for row in rows:
             writer.writerow([row[0], round(row[1], 1), row[2]])
 
-    print("TODO: write_user_analytics")
 
 
 # This function will write the callLogs ordered by userId, then start time.
 # Then, write the ordered callLogs to orderedCalls.csv
 def write_ordered_calls(csv_file_path):
     cursor.execute('SELECT * FROM callLogs ORDER BY userId, startTime')
-    
+    rows = cursor.fetchall()
+
     with open(csv_file_path, mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['callId', 'phoneNumber', 'startTime', 'endTime', 'direction', 'userId'])
-        for row in cursor.fetchall():
-            writer.writerows(row)
+        writer.writerow(['callid', 'phoneNumber', 'startTime', 'endTime', 'direction', 'userId'])
 
-    print("TODO: write_ordered_calls")
+        for row in rows:
+            writer.writerow(row)
+
 
 
 
